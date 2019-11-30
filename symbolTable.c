@@ -35,12 +35,12 @@ void removeFromHashTrain(int hashIndex, SymbolTableEntry* entry)
 	if (entry->prevInHashChain)
 	{
 		prev = &entry;
-		/*prev = &entry->prevInHashChain->nextInHashChain*/	
 	}
 	else
 	{
 		prev = &symbolTable.hashTable[hashIndex];
 	}
+	
 	
 	/*point to the next of goal*/
 	*prev = entry->nextInHashChain;
@@ -48,9 +48,25 @@ void removeFromHashTrain(int hashIndex, SymbolTableEntry* entry)
 	if(entry->nextInHashChain)
 	{/*let goal of next point to goal of prev*/
 		entry->nextInHashChain->prevInHashChain = entry->prevInHashChain;
+		/*TODO*/
+		entry->prevInHashChain->nextInHashChain = entry->nextInHashChain;
+		/*how to link nextInSameLevel & samenameinouterlevel
+		if(entry->nextInSameLevel)
+		{
+				
+		}
+		*/
 	}
+	else
+	{
+		/*TODO:pre point to null*/
+		entry->prevInHashChain->nextInHashChain=NULL;
+
+	}
+	/*TODO:free*/
 	entry->nextInHashChain = NULL;
 	entry->prevInHashChain = NULL;
+	free(entry);
 }
 
 void enterIntoHashTrain(int hashIndex, SymbolTableEntry* entry)
@@ -80,7 +96,7 @@ void symbolTableEnd()
 		SymbolTableEntry* p = symbolTable.hashTable[i];
 		while(p!=NULL)
 		{
-			SymbolTableEntry* pnext = s->nextInHashChain;
+			SymbolTableEntry* pnext = p->nextInHashChain;
 			free(p);
 			p=pnext;
 		}
@@ -89,25 +105,73 @@ void symbolTableEnd()
 
 SymbolTableEntry* retrieveSymbol(char* symbolName)
 {
+	SymbolTableEntry* goal=symbolTable.hashTable[HASH(symbolName)];
+	while(goal!=NULL)
+	{
+		if(strcmp(symbolName, goal->name)==0)
+		{
+			return goal;
+		}
+		goal = goal->nextInHashChain;
+	}
+	return NULL;
 }
 
 SymbolTableEntry* enterSymbol(char* symbolName, SymbolAttribute* attribute)
 {
+	int index = HASH(symbolName);
+	SymbolTableEntry* new = newSymbolTableEntry(symbolTable.currentLevel);
+	new->name = strdup(symbolName);
+	new->attribute = attribute;
+	enterIntoHashTrain(index, new);
+	return new;
 }
 
 //remove the symbol from the current scope
 void removeSymbol(char* symbolName)
 {
+	int index = HASH(symbolName);
+	SymbolTableEntry* entry = symbolTable.hashTable[index]->nextInHashChain;
+	while(entry != NULL)
+	{
+		if(strcmp(entry->name, symbolName)==0)
+		{
+			removeFromHashTrain(index, entry);
+			return;	
+		}
+		entry = entry->nextInHashChain;
+	}
 }
 
 int declaredLocally(char* symbolName)
 {
+	int index = HASH(symbolName);
+	SymbolTableEntry* entry = symbolTable.hashTable[index];
+
+	while(entry)	
+	{
+		if(strcmp(entry->name, symbolName)==0)
+		{
+			return(entry->nestingLevel == symbolTable.currentLevel);
+		}
+	}
+	return 0;
 }
 
 void openScope()
 {
+	symbolTable.currentLevel++;
+	symbolTable.scopeDisplay[symbolTable.currentLevel]= NULL;
 }
 
 void closeScope()
 {
+	SymbolTableEntry* rm = symbolTable.scopeDisplay[symbolTable.currentLevel];
+	while(rm != NULL)
+	{
+		SymbolTableEntry* temp = rm;
+		rm = rm -> nextInSameLevel;
+		free(temp);
+	}
+	symbolTable.currentLevel--;
 }
